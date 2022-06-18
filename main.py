@@ -48,7 +48,7 @@ def Training(method,file,TestSize=0.3):
     filename = "model_"+method+".sav"
     pickle.dump(clf,open(filename,'wb'))
     return True
-def Statistics(method,file):
+def Statistics(method,file,Testsize=0.3):
     filename = "model_" + method + ".sav"
     if not exists(filename):        #checking if model exists
         print("Nie ma takiego modelu. Próbuję taki stworzyć.")
@@ -58,7 +58,7 @@ def Statistics(method,file):
         else:
             return
     clf = pickle.load(open(filename, 'rb'))
-    X_train, X_test, Y_train, Y_test = Get_Data(file,0.3)
+    X_train, X_test, Y_train, Y_test = Get_Data(file,TestSize)
     start = time.time_ns()
     Y_predicted = clf.predict(X_test)
     end = time.time_ns()
@@ -94,14 +94,41 @@ def Usage(method,file):
     Y_predicted = clf.predict(X_to_predict)
     print("Algorytm: "+str(method))
     print("Wyniki: "+str(Y_predicted))
+def Usage_Combined(file):
+    if not exists("model_KNN.sav"):
+        print("Tworzenie niezbędnego modelu.")
+        Training("KNN","Tweety.csv")
+    if not exists("model_MLP.sav"):
+        print("Tworzenie niezbędnego modelu.")
+        Training("MLP","Tweety.csv")
+    if not exists("model_SVC.sav"):
+        print("Tworzenie niezbędnego modelu.")
+        Training("SVC","Tweety.csv")
+    data_to_predict = []
+    with open(file, encoding='utf8') as f:
+        for line in f:
+            data_to_predict.append(line)
+    cv = pickle.load(open("CountVectorizer.pickel","rb"))
+    X_to_predict = cv.transform(data_to_predict)
+    clf1 = pickle.load(open("model_SVC.sav",'rb'))
+    clf2 = pickle.load(open("model_MLP.sav",'rb'))
+    clf3 = pickle.load(open("model_KNN.sav",'rb'))
+    Y1_predicted = clf1.predict(X_to_predict)
+    Y2_predicted = clf2.predict(X_to_predict)
+    Y3_predicted = clf3.predict(X_to_predict)
+    Y_predicted = Y2_predicted*0.4 + Y1_predicted*0.35 + Y3_predicted*0.25
+    Y_predicted = [int(val + 0.5) for val in Y_predicted]
+    print("Połączone algorytmy.")
+    print("Wyniki: " + str(Y_predicted))
 def Visualisation(method):
-    print("WORK IN PROGRESS")
+    print("WIP")
 def Help():
     print("Funkcja \"Training\" pozwala na wytrenowanie modelu na podstawie pliku z danymi. Należy pamiętać, że w każdym wierszu powinien znaleźć się tekst oraz klasyfikacja tekstu. 1 dla tekstów nadających się do publikacji oraz 0, dla tekstów nienadających się do publikacji.")
     print("Funkcja \"Statistics\" pozwala na sprawdzenie współczynników jakości dla danego modelu algorytmu uczenia maszynowego stworzonego na podstawie danych uczących.")
     print("Funkcja \"Usage\" pozwala na wykorzystanie gotowego modelu do predykcji etykiet dla podanych danych. W przypadku, gdyby wcześniej nie stworzono modelu, to program najpierw stworzy model dla danego algorytmu na podstawie wcześniej przygotowanych danych uczących a następnie wykorzysta stworzony model do predykcji podanych danych.")
     print("Funkcja \"Help\" wyświetla to okno z wyjaśnieniem działania poszczególnych funkcji programu.")
-    print("Funkcja \"Visualisation\" pozwala na wizualizację krzywych uczenia dla poszczególnych metod uczenia maszynowego.")
+    print("Funkcja \"UsageCombined\" działa analogicznie do funkcji \"Usage\", lecz zamiast pojedyńczego algorytmu wyciąga średnią ważoną z predykcji wszystkich 3 modeli. Wagi zostały przydzielone zgodnie z dokładnością algorytmów.")
+    print("Funkcja \"Visualisation\" pozwala na wizualizację krzywej uczenia dla danego algorytmu uczenia maszynowego.")
     x = input("Wciśnij dowolny przycisk, aby wrócić do menu głównego.")
     return
 def Menu():
@@ -109,9 +136,10 @@ def Menu():
         print("1 - Training")
         print("2 - Statistics")
         print("3 - Usage")
-        print("4 - Visualisation")
-        print("5 - Help")
-        print("6 - End program")
+        print("4 - UsageCombined")
+        print("5 - Visualisation")
+        print("6 - Help")
+        print("7 - End program")
         print("Wpisz liczbę, aby uruchomić daną funkcję.")
         x=input()
         if x=='1':
@@ -127,11 +155,14 @@ def Menu():
             file = input("Podaj nazwę pliku wraz z rozszerzeniem, w którym są dane do klasyfikacji.")
             Usage(method,file)
         elif x=='4':
-            method = input("Podaj algorytm, jaki chcesz zwizualizować. \n Dostępne: SVC, MLP, KNN. \n")
-            Visualisation(method)
+            file = input("Podaj nazwę pliku wraz z rozszerzeniem, w którym są dane do klasyfikacji.")
+            Usage_Combined(file)
         elif x=='5':
-            Help()
+            method = input("Podaj, którą metodę chcesz zwizualizować.")
+            Visualisation(method)
         elif x=='6':
+            Help()
+        elif x=='7':
             return
         else:
             print("Nie ma takiej opcji w programie. Spróbuj ponownie.")
