@@ -1,3 +1,5 @@
+import time
+
 import pandas as pd
 import numpy as np
 from sklearn.svm import SVC
@@ -15,26 +17,29 @@ def Get_Data(file,TestSize):
     Y = data['grade'].values
     X_train, X_test, Y_train, Y_test = train_test_split(X,Y,test_size=TestSize, random_state=RandomState)
     cv = CountVectorizer()
+    x = cv.fit_transform(X)
+    #print(cv.vocabulary_)
     X_train = cv.fit_transform(X_train)
-    X_test = cv.fit_transform(X_test)
+    X_test = cv.transform(X_test)
+    pickle.dump(cv,open("CountVectorizer.pickel","wb"))
     return X_train, X_test, Y_train, Y_test
-def Training(method,file):
-    X_train, X_test, Y_train, Y_test = Get_Data(file,TestSize=0.3)
+def Training(method,file,TestSize=0.3):
+    X_train, X_test, Y_train, Y_test = Get_Data(file,TestSize=TestSize)
     if method == "SVC":
         clf = SVC()
     elif method == "KNN":
         decision = input("Czy chcesz zmienić liczbę sąsiadów w algorytmie? \n Wpisz \"-1\" jeśli nie. Jeśli tak, to wpisz nową wartość liczby sąsiadów.")
-        if decision == '-1':
+        if decision != '-1':
             n_neighbors = 5
         else:
-            n_neihbors = decision
+            n_neighbors = int(decision)
         clf = KNeighborsClassifier(n_neighbors=n_neighbors)
     elif method == "MLP":
         decision = input("Czy chcesz zmienić maksymalną liczbę iteracji w algorytmie? \n Wpisz \"-1\" jeśli nie. Jeśli tak, to wpisz nową maksymalną liczbę iteracji.")
         if decision == '-1':
             maxiter = 100
         else:
-           maxiter = decision
+           maxiter = int(decision)
         clf = MLPClassifier(max_iter=maxiter)
     else:
         print("Nie ma takiej metody.")
@@ -54,16 +59,21 @@ def Statistics(method,file):
             return
     clf = pickle.load(open(filename, 'rb'))
     X_train, X_test, Y_train, Y_test = Get_Data(file,0.3)
+    start = time.time_ns()
     Y_predicted = clf.predict(X_test)
+    end = time.time_ns()
+    diff = end-start
+    print(diff)
     test = Y_test
     Acc = accuracy_score(test,Y_predicted)
-    Prec = precision_score(test,Y_predicted,average=None)
+    Prec = precision_score(test,Y_predicted,average=None,zero_division=False)
     F1score = f1_score(test,Y_predicted, average=None)
     Con_matrix = confusion_matrix(test,Y_predicted)
     print("Accuracy: "+str(Acc))
     print("Precision: " + str(Prec))
     print("F1 score: " + str(F1score))
     print("Confusion matrix: "+str(Con_matrix))
+    print("Working time in nanoseconds: "+str(diff))
     print("Koniec statystyk.")
 def Usage(method,file):
     filename = "model_"+method+".sav"
@@ -75,11 +85,14 @@ def Usage(method,file):
         else:
             return
     clf = pickle.load(open(filename,'rb'))
-    cv = CountVectorizer()
-    with open(file) as f:
-        data_to_predict = f.read()
-    X_to_predict = cv.fit_transform(data_to_predict)
+    cv = pickle.load(open("CountVectorizer.pickel","rb"))
+    data_to_predict = []
+    with open(file,encoding='utf8') as f:
+        for line in f:
+            data_to_predict.append(line)
+    X_to_predict = cv.transform(data_to_predict)
     Y_predicted = clf.predict(X_to_predict)
+    print("Algorytm: "+str(method))
     print("Wyniki: "+str(Y_predicted))
 def Visualisation(method):
     print("WORK IN PROGRESS")
